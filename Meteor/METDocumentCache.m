@@ -100,6 +100,46 @@
   return result;
 }
 
+- (BOOL)updateDocumentWithKey:(METDocumentKey *)documentKey
+                   pullFields:(NSDictionary *)pullFields
+                   pushFields:(NSDictionary *)pushFields {
+    NSParameterAssert(documentKey);
+    NSParameterAssert(pullFields || pushFields);
+    
+    __block BOOL result = NO;
+    dispatch_barrier_sync(_queue, ^{
+        METDocument *existingDocument = [self loadDocumentWithKey:documentKey];
+        if (!existingDocument) {
+            NSLog(@"Couldn't update document because no document with the specified ID exists: %@", documentKey);
+            result = NO;
+            return;
+        }
+        
+        [_delegate documentCache:self willChangeDocumentWithKey:documentKey fieldsBeforeChanges:existingDocument.fields];
+        
+        NSMutableDictionary *tempFields = [[NSMutableDictionary alloc] initWithDictionary:existingDocument.fields];
+        for (NSString *key in pullFields.allKeys) {
+            id objectToRemove = pullFields[key];
+            NSMutableArray *srcArray = [[NSMutableArray alloc] initWithArray:tempFields[key]];
+            [srcArray removeObject:objectToRemove];
+            tempFields[key] = srcArray;
+        }
+        
+        for (NSString *key in pushFields.allKeys) {
+            id objectToAdd = pushFields[key];
+            NSArray *srcArray = tempFields[key];
+            tempFields[key] = [srcArray arrayByAddingObject:objectToAdd];
+        }
+        
+        
+        METDocument *document = [[METDocument alloc] initWithKey:documentKey fields:tempFields];
+        [self storeDocument:document forKey:documentKey];
+        [_delegate documentCache:self didChangeDocumentWithKey:documentKey fieldsAfterChanges:document.fields];
+        result = YES;
+    });
+    return result;
+}
+
 - (void)replaceDocumentWithKey:(METDocumentKey *)documentKey fields:(NSDictionary *)fields {
   NSParameterAssert(documentKey);
   

@@ -40,6 +40,9 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)replaceDocumentWithKey:(METDocumentKey *)documentKey fields:(NSDictionary *)fields;
 - (BOOL)removeDocumentWithKey:(METDocumentKey *)documentKey;
 - (void)removeAllDocuments;
+- (BOOL)updateDocumentWithKey:(METDocumentKey *)documentKey
+                   pullFields:(NSDictionary *)pullFields
+                   pushFields:(NSDictionary *)pushFields;
 
 - (void)applyDataUpdate:(METDataUpdate *)update;
 

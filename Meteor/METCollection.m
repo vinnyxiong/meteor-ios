@@ -82,17 +82,23 @@
     NSDictionary *modifier = parameters[1];
     
     id documentID = [self documentIDFromSelector:selector];
-    
-    NSMutableDictionary *fields = modifier[@"$set"];
-    NSArray *clearedFields = modifier[@"$unset"];
-    for (NSString *field in clearedFields) {
-      fields[field] = [NSNull null];
+    __block BOOL success = NO;
+    if(modifier[@"$pull"] || modifier[@"$push"]) {
+        [_database performUpdatesInLocalCache:^(METDocumentCache *localCache) {
+            success = [localCache updateDocumentWithKey:[self keyWithID:documentID] pullFields:modifier[@"$pull"] pushFields:modifier[@"$push"]];
+        }];
+    }else {
+        NSMutableDictionary *fields = modifier[@"$set"];
+        NSArray *clearedFields = modifier[@"$unset"];
+        for (NSString *field in clearedFields) {
+            fields[field] = [NSNull null];
+        }
+        
+        [_database performUpdatesInLocalCache:^(METDocumentCache *localCache) {
+            success = [localCache updateDocumentWithKey:[self keyWithID:documentID] changedFields:fields];
+        }];
     }
     
-    __block BOOL success = NO;
-    [_database performUpdatesInLocalCache:^(METDocumentCache *localCache) {
-      success = [localCache updateDocumentWithKey:[self keyWithID:documentID] changedFields:fields];
-    }];
     
     if (success) {
       return @1;
